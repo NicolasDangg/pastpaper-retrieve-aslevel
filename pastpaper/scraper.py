@@ -43,10 +43,7 @@ def scrape_subject(
     if isinstance(year_code, str):
         year_code = [year_code]
 
-    # Ensure the parent folder exists
-    parent_folder = "/Users/nicolasdangg/Documents/Documents - nicolas/School Work/vin cun/past papers/as level"
-    os.makedirs(parent_folder, exist_ok=True)
-    out_dir = parent_folder
+    os.makedirs(out_dir, exist_ok=True)
 
     tasks = build_download_tasks(
         subject_code,

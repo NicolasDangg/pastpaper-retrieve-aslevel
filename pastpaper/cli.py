@@ -13,6 +13,7 @@ LOGO = [
     " |_| /_/   \\_\\____/ |_|   |_| /_/   \\_\\_|   |_____|_| \\_\\",
     "",
     "Past Paper Retrieve for AS and A Level, by Nicolas Dang",
+    "All credits to Past Paper Co, this is only a client",
 ]
 
 
