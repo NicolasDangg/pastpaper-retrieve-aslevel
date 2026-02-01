@@ -6,12 +6,12 @@ from pastpaper.scraper import scrape_subject
 from pastpaper.subjects import LEVELS, PAPER_TYPES, SESSIONS, SUBJECTS
 
 LOGO = [
-    "██████╗  █████╗ ███████╗████████╗    ██████╗  █████╗ ██████╗ ███████╗██████╗ ",
-    "██╔══██╗██╔══██╗██╔════╝╚══██╔══╝    ██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗",
-    "██████╔╝███████║███████╗   ██║       ██████╔╝███████║██████╔╝█████╗  ██████╔╝",
-    "██╔═══╝ ██╔══██║╚════██║   ██║       ██╔═══╝ ██╔══██║██╔══██╗██╔══╝  ██╔══██╗",
-    "██║     ██║  ██║███████║   ██║       ██║     ██║  ██║██║  ██║███████╗██║  ██║",
-    "╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝       ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝",
+    "  ____   _    ____ _____   ____   _    ____  _____ ____  ",
+    " |  _ \\ / \\  / ___|_   _| |  _ \\ / \\  |  _ \\| ____|  _ \\ ",
+    " | |_) / _ \\ \\___ \\ | |   | |_) / _ \\ | |_) |  _| | |_) |",
+    " |  __/ ___ \\ ___) || |   |  __/ ___ \\|  __/| |___|  _ < ",
+    " |_| /_/   \\_\\____/ |_|   |_| /_/   \\_\\_|   |_____|_| \\_\\",
+    "",
     "Past Paper Retrieve for AS and A Level, by Nicolas Dang",
 ]
 
@@ -182,7 +182,13 @@ def draw_logo_centered(stdscr):
             logo_line = logo_line[: max(0, width - 5)] + "..."
         y = max(0, (height - logo_height) // 2 + i - 6)
         center_text(stdscr, logo_line, y, color=1, bold=True)
-    return max(0, (height - logo_height) // 2 - 6) + logo_height + 1
+    # Add credits line below the logo
+    credits = "All credits to Past Paper Co, this is only a client"
+    y_credits = max(0, (height - logo_height) // 2 - 6) + logo_height + 1
+    if len(credits) > width - 2:
+        credits = credits[: max(0, width - 5)] + "..."
+    center_text(stdscr, credits, y_credits, color=3, bold=False)
+    return y_credits + 1
 
 
 def tui(stdscr):
