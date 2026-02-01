@@ -3,6 +3,8 @@
 download cie as & a level past papers from pastpapers.co  
 supports qp + ms pdfs
 
+# ALL CREDITS TO PAST PAPER CO
+
 ## setup (mac)
 
 ```bash
