@@ -1,12 +1,30 @@
 import os
-import re
 import time
 from typing import Iterable, List
 
 import requests
 from tqdm import tqdm
 
-BASE_URL = "https://pastpapers.co/cie"
+BASE_API = "https://pastpapers.co/api/file"
+BOARD = "caie"
+
+SESSION_MAP = {
+    "m": "March",
+    "s": "May-June",
+    "w": "Oct-Nov",
+}
+
+LEVEL_MAP = {
+    "as": "A-Level",  # Both AS and A2 papers are under A-Level
+    "a2": "A-Level",
+}
+
+# you can expand this later or move to subjects.py
+SUBJECT_MAP = {
+    "9701": "Chemistry-9701",
+    "9702": "Physics-9702",
+    "9709": "Mathematics-9709",
+}
 
 
 def scrape_subject(
@@ -20,21 +38,15 @@ def scrape_subject(
     retries: int = 3,
     timeout: int = 15,
 ):
-    """
-    subject_code: e.g. '9701'
-    level: 'as' or 'a2'
-    paper_type: 'qp', 'ms', or 'both'
-    session_code: 'm' | 's' | 'w' OR list of them
-    year_code: '25' OR list of them
-    paper_numbers: ['11','12','13'] or None for all
-    """
-
     if isinstance(session_code, str):
         session_code = [session_code]
     if isinstance(year_code, str):
         year_code = [year_code]
 
-    os.makedirs(out_dir, exist_ok=True)
+    # Ensure the parent folder exists
+    parent_folder = "/Users/nicolasdangg/Documents/Documents - nicolas/School Work/vin cun/past papers/as level"
+    os.makedirs(parent_folder, exist_ok=True)
+    out_dir = parent_folder
 
     tasks = build_download_tasks(
         subject_code,
@@ -43,6 +55,7 @@ def scrape_subject(
         session_code,
         year_code,
         paper_numbers,
+        out_dir,
     )
 
     if not tasks:
@@ -72,36 +85,57 @@ def build_download_tasks(
     sessions: List[str],
     years: List[str],
     paper_numbers: Iterable[str] | None,
+    out_dir: str,
 ):
     tasks = []
 
+    subject_slug = SUBJECT_MAP.get(subject_code)
+    if not subject_slug:
+        raise ValueError(f"unknown subject code: {subject_code}")
+
+    level_name = LEVEL_MAP[level]
+
     for year in years:
         for session in sessions:
+            session_name = SESSION_MAP[session]
+            session_folder = f"20{year}-{session_name}"
+
             prefix = f"{subject_code}_{session}{year}"
 
             if paper_type in ("qp", "both"):
                 tasks += discover_files(
+                    subject_slug,
+                    level_name,
+                    session_folder,
                     prefix,
                     "qp",
                     paper_numbers,
+                    out_dir,
                 )
 
             if paper_type in ("ms", "both"):
                 tasks += discover_files(
+                    subject_slug,
+                    level_name,
+                    session_folder,
                     prefix,
                     "ms",
                     paper_numbers,
+                    out_dir,
                 )
 
     return tasks
 
 
-def discover_files(prefix, kind, paper_numbers):
-    """
-    Example file:
-    9701_m25_qp_12.pdf
-    """
-
+def discover_files(
+    subject_slug: str,
+    level_name: str,
+    session_folder: str,
+    prefix: str,
+    kind: str,
+    paper_numbers: Iterable[str] | None,
+    out_dir: str,
+):
     results = []
 
     for paper in paper_numbers or [
@@ -116,12 +150,21 @@ def discover_files(prefix, kind, paper_numbers):
         "33",
     ]:
         filename = f"{prefix}_{kind}_{paper}.pdf"
-        url = f"{BASE_URL}/{filename}"
+
+        url = (
+            f"{BASE_API}/"
+            f"{BOARD}/"
+            f"{level_name}/"
+            f"{subject_slug}/"
+            f"{session_folder}/"
+            f"{filename}"
+            "?download=true"
+        )
 
         out_path = os.path.join(
-            os.getcwd(),
-            "pastpaper",
-            prefix,
+            out_dir,
+            subject_slug,
+            session_folder,
             kind,
             filename,
         )
@@ -132,17 +175,38 @@ def discover_files(prefix, kind, paper_numbers):
     return results
 
 
-def download_with_retry(url, out_path, retries=3, timeout=15):
+def download_with_retry(url, out_path, retries=3, timeout=60):
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://pastpapers.co/",
+        "Accept": "application/pdf,*/*",
+    }
+
     for attempt in range(1, retries + 1):
         try:
-            r = requests.get(url, timeout=timeout)
-            if r.status_code == 200 and r.content[:4] == b"%PDF":
-                with open(out_path, "wb") as f:
-                    f.write(r.content)
-                return True
-        except requests.RequestException:
-            pass
+            print(f"Attempt {attempt}: Downloading {url}")
+            r = requests.get(url, headers=headers, timeout=timeout, stream=True)
 
-        time.sleep(1.5 * attempt)
+            if r.status_code == 200:
+                with open(out_path, "wb") as f:
+                    for chunk in r.iter_content(8192):
+                        if chunk:
+                            f.write(chunk)
+
+                # sanity check
+                with open(out_path, "rb") as f:
+                    if f.read(4) == b"%PDF":
+                        return True
+
+                os.remove(out_path)
+            else:
+                print(f"Failed to download {url}: Status code {r.status_code}")
+
+        except requests.Timeout:
+            print(f"Timeout error for {url}")
+        except requests.RequestException as e:
+            print(f"Request error for {url}: {e}")
+
+        time.sleep(2 * attempt)
 
     return False
