@@ -9,3 +9,9 @@ SUBJECTS = {
 LEVELS = {"1": "as", "2": "a", "3": "both"}
 
 PAPER_TYPES = {"1": "qp", "2": "ms", "3": "both"}
+
+SESSIONS = {
+    "1": ("march", "m"),
+    "2": ("may-june", "s"),
+    "3": ("oct-nov", "w"),
+}
