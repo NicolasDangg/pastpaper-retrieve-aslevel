@@ -1,71 +1,148 @@
 import os
+import re
+import time
+from typing import Iterable, List
 
 import requests
-from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-from pastpaper.utils import ensure_dir, sanitize_filename
-
-BASE_URL = "https://pastpapers.co"
-
-HEADERS = {"User-Agent": "Mozilla/5.0"}
+BASE_URL = "https://pastpapers.co/cie"
 
 
-def fetch_html(url):
-    r = requests.get(url, headers=HEADERS, timeout=30)
-    r.raise_for_status()
-    return r.text
-
-
-def download_file(url, out_path):
-    r = requests.get(url, headers=HEADERS, stream=True)
-    r.raise_for_status()
-
-    total = int(r.headers.get("content-length", 0))
-    with (
-        open(out_path, "wb") as f,
-        tqdm(
-            total=total, unit="B", unit_scale=True, desc=os.path.basename(out_path)
-        ) as bar,
-    ):
-        for chunk in r.iter_content(chunk_size=8192):
-            if chunk:
-                f.write(chunk)
-                bar.update(len(chunk))
-
-
-def scrape_subject(subject_code, level, paper_type, out_dir):
+def scrape_subject(
+    subject_code: str,
+    level: str,
+    paper_type: str,
+    session_code: str | List[str],
+    year_code: str | List[str],
+    out_dir: str,
+    paper_numbers: Iterable[str] | None = None,
+    retries: int = 3,
+    timeout: int = 15,
+):
     """
-    level: as | a | both
-    paper_type: qp | ms | both
+    subject_code: e.g. '9701'
+    level: 'as' or 'a2'
+    paper_type: 'qp', 'ms', or 'both'
+    session_code: 'm' | 's' | 'w' OR list of them
+    year_code: '25' OR list of them
+    paper_numbers: ['11','12','13'] or None for all
     """
 
-    ensure_dir(out_dir)
+    if isinstance(session_code, str):
+        session_code = [session_code]
+    if isinstance(year_code, str):
+        year_code = [year_code]
 
-    url = f"{BASE_URL}/cie/{subject_code}"
-    html = fetch_html(url)
-    soup = BeautifulSoup(html, "html.parser")
+    os.makedirs(out_dir, exist_ok=True)
 
-    links = soup.select("a[href$='.pdf']")
+    tasks = build_download_tasks(
+        subject_code,
+        level,
+        paper_type,
+        session_code,
+        year_code,
+        paper_numbers,
+    )
 
-    for a in links:
-        href = a["href"]
-        text = a.get_text(strip=True).lower()
+    if not tasks:
+        print("no matching papers found")
+        return
 
-        if level != "both" and level not in text:
-            continue
+    with tqdm(tasks, desc="downloading", unit="file") as bar:
+        for url, out_path in bar:
+            if os.path.exists(out_path):
+                bar.set_postfix_str("skipped")
+                continue
 
-        if paper_type == "qp" and "question" not in text:
-            continue
-        if paper_type == "ms" and "mark" not in text:
-            continue
+            success = download_with_retry(
+                url,
+                out_path,
+                retries=retries,
+                timeout=timeout,
+            )
 
-        pdf_url = href if href.startswith("http") else BASE_URL + href
-        filename = sanitize_filename(os.path.basename(href))
-        out_path = os.path.join(out_dir, filename)
+            bar.set_postfix_str("ok" if success else "failed")
 
-        if os.path.exists(out_path):
-            continue
 
-        print(f"downloading {filename}")
-        download_file(pdf_url, out_path)
+def build_download_tasks(
+    subject_code: str,
+    level: str,
+    paper_type: str,
+    sessions: List[str],
+    years: List[str],
+    paper_numbers: Iterable[str] | None,
+):
+    tasks = []
+
+    for year in years:
+        for session in sessions:
+            prefix = f"{subject_code}_{session}{year}"
+
+            if paper_type in ("qp", "both"):
+                tasks += discover_files(
+                    prefix,
+                    "qp",
+                    paper_numbers,
+                )
+
+            if paper_type in ("ms", "both"):
+                tasks += discover_files(
+                    prefix,
+                    "ms",
+                    paper_numbers,
+                )
+
+    return tasks
+
+
+def discover_files(prefix, kind, paper_numbers):
+    """
+    Example file:
+    9701_m25_qp_12.pdf
+    """
+
+    results = []
+
+    for paper in paper_numbers or [
+        "11",
+        "12",
+        "13",
+        "21",
+        "22",
+        "23",
+        "31",
+        "32",
+        "33",
+    ]:
+        filename = f"{prefix}_{kind}_{paper}.pdf"
+        url = f"{BASE_URL}/{filename}"
+
+        out_path = os.path.join(
+            os.getcwd(),
+            "pastpaper",
+            prefix,
+            kind,
+            filename,
+        )
+
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        results.append((url, out_path))
+
+    return results
+
+
+def download_with_retry(url, out_path, retries=3, timeout=15):
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200 and r.content[:4] == b"%PDF":
+                with open(out_path, "wb") as f:
+                    f.write(r.content)
+                return True
+        except requests.RequestException:
+            pass
+
+        time.sleep(1.5 * attempt)
+
+    return False
