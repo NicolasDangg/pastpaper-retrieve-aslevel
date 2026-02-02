@@ -160,7 +160,6 @@ def discover_files(
 
         out_path = os.path.join(
             out_dir,
-            subject_slug,
             session_folder,
             kind,
             filename,

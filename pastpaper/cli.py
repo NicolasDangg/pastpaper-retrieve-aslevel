@@ -367,7 +367,7 @@ def tui(stdscr):
         os.path.expanduser("~"),
         "Documents",
         "past paper",
-        subject_name.replace(" ", "_"),
+        f"{subject_name.replace(' ', '_')}-{subject_code}",
     )
 
     # Summary screen
