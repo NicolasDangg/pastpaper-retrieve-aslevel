@@ -13,7 +13,6 @@ LOGO = [
     " |_| /_/   \\_\\____/ |_|   |_| /_/   \\_\\_|   |_____|_| \\_\\",
     "",
     "Past Paper Retrieve for AS and A Level, by Nicolas Dang",
-    "All credits to Past Paper Co, this is only a client",
 ]
 
 
@@ -364,7 +363,12 @@ def tui(stdscr):
     session_codes = [SESSIONS[k][1] for k in session_keys]
     year_codes = [y[-2:] for y in years]
 
-    out_dir = os.path.join(os.getcwd(), "pastpaper", subject_name.replace(" ", "_"))
+    out_dir = os.path.join(
+        os.path.expanduser("~"),
+        "Documents",
+        "past paper",
+        subject_name.replace(" ", "_"),
+    )
 
     # Summary screen
     while True:
