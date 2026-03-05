@@ -1,6 +1,6 @@
 # Past Paper Retrieve CLI
 
-A terminal-based CLI tool to download CIE AS & A Level past papers from pastpapers.co. Supports question papers (qp) and mark schemes (ms) in PDF format.
+A terminal-based CLI tool to download CIE AS & A Level past papers from **pastpapers.co**. Supports question papers (qp) and mark schemes (ms) in PDF format.
 
 ## Features
 
