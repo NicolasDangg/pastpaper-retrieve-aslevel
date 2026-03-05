@@ -89,36 +89,40 @@ pastpaper
 The tool uses keyboard navigation:
 
 - **Arrow Keys** (↑↓): Navigate through options
-- **Space**: Select/deselect items (for multi-select)
+- **Space**: Select/deselect items (for multi-select fields like Sessions)
 - **Enter**: Confirm selection
 - **Esc**: Quit the application
 
 ### Download Process
 
 1. **Select Level**: Choose between AS Level, A Level, etc.
-2. **Select Subject**: Choose your subject (e.g., Mathematics, Physics)
-3. **Select Paper Type**: Choose between Question Paper (qp) or Mark Scheme (ms)
-4. **Select Sessions**: Choose exam sessions (Feb/May, Oct/Nov)
-5. **Enter Years**: Input years in 2-digit format (e.g., 23,24,25 for 2023-2025)
-6. **Enter Paper Numbers**: Optional - specify paper numbers (e.g., 11,12,13) or leave blank for all
+2. **Select Subject**: Choose your subject (e.g., Computer Science, Mathematics, Physics)
+3. **Select Paper Type**: Choose specific types or **'Both QP & MS'** or **'All'**
+4. **Select Sessions**: Choose exam sessions (SPACE to select, ENTER to confirm)
+5. **Enter Years**: Input 2-digit years (e.g., 23,24,25) or leave blank for defaults
+6. **Enter Paper Numbers**: Optional - specify numbers (e.g., 11,12) or leave blank for all
 7. **Confirm**: Review your selection and press any key to start downloading
+
+### Monitoring
+
+The tool now includes a **Background Task Monitor** panel that appears during the download process. It provides real-time feedback on:
+- Successful downloads
+- Failed attempts (automatically cleaned up if a retry succeeds)
+- Skipped files (if they already exist locally)
+
+You can also view the full log history at `~/pastpaper_logs/download_status.log`.
 
 ### Output
 
-Downloaded files are organized as:
+Downloaded files are organized by subject and session:
 ```
-pastpaper/
-└── Subject_Name/
-    ├── subject_code_year_session_paper_type_paper_number_qp.pdf
-    └── subject_code_year_session_paper_type_paper_number_ms.pdf
-```
-
-Example:
-```
-pastpaper/
-└── Mathematics/
-    ├── 9709_23_m22_qp_11.pdf
-    └── 9709_23_m22_ms_11.pdf
+Documents/past paper/
+└── Subject_Name-Code/
+    ├── Year-Session/
+    │   ├── qp/
+    │   │   └── code_session_qp_number.pdf
+    │   └── ms/
+    │       └── code_session_ms_number.pdf
 ```
 
 ## Dependencies
