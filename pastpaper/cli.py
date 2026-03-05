@@ -302,7 +302,25 @@ def tui(stdscr):
     paper_key = redraw_selection(
         singleselect_centered, "Select Paper Type", PAPER_TYPES
     )
-    session_keys = redraw_selection(multiselect_centered, "Select Sessions", SESSIONS)
+    
+    # Session selection (with validation)
+    while True:
+        # Filter sessions for Computer Science
+        available_sessions = SESSIONS
+        if subject_key == "4": # Computer Science (9618)
+            available_sessions = {k: v for k, v in SESSIONS.items() if v[0] != "march"}
+            
+        session_keys = redraw_selection(
+            multiselect_centered, "Select Sessions (SPACE to select, ENTER to confirm)", available_sessions
+        )
+        if session_keys:
+            break
+        # Show a temporary warning if nothing selected
+        stdscr.attron(curses.color_pair(2) | curses.A_BOLD)
+        center_text(stdscr, "PLEASE SELECT AT LEAST ONE SESSION!", 1, color=2)
+        stdscr.attroff(curses.color_pair(2) | curses.A_BOLD)
+        stdscr.refresh()
+        time.sleep(1)
 
     # Years input
     while True:
@@ -312,19 +330,20 @@ def tui(stdscr):
         logo_bottom = draw_logo_centered(stdscr)
         center_text(
             stdscr,
-            "Enter years (comma separated, e.g. 23,24,25):",
+            "Enter years (23,24,25) or leave blank for 23,24,25:",
             logo_bottom,
             color=1,
             bold=True,
         )
         curses.echo()
         stdscr.attron(curses.color_pair(5))
-        height, width = stdscr.getmaxyx()
-        prompt = "> "
-        if len(prompt) > width - 6:
-            prompt = prompt[: max(0, width - 9)] + "..."
+        prompt = "Years: "
         stdscr.addstr(logo_bottom + 2, 4, prompt)
-        years = stdscr.getstr(logo_bottom + 2, 6).decode().replace(" ", "").split(",")
+        years_raw = stdscr.getstr(logo_bottom + 2, 4 + len(prompt)).decode().strip()
+        if not years_raw:
+            years = ["23", "24", "25"]
+        else:
+            years = [y.strip() for y in years_raw.split(",") if y.strip()]
         stdscr.attroff(curses.color_pair(5))
         curses.noecho()
         break
@@ -337,31 +356,29 @@ def tui(stdscr):
         logo_bottom = draw_logo_centered(stdscr)
         center_text(
             stdscr,
-            "Enter paper numbers (e.g. 11,12,13 or leave blank for all):",
-            logo_bottom,
+            "Enter paper numbers (e.g. 11,12) or leave blank for all:",
+            logo_bottom + 4,
             color=1,
             bold=True,
         )
         curses.echo()
         stdscr.attron(curses.color_pair(5))
-        height, width = stdscr.getmaxyx()
-        prompt = "> "
-        if len(prompt) > width - 6:
-            prompt = prompt[: max(0, width - 9)] + "..."
-        stdscr.addstr(logo_bottom + 2, 4, prompt)
-        paper_nums_raw = stdscr.getstr(logo_bottom + 2, 6).decode().replace(" ", "")
+        prompt = "Paper Numbers: "
+        stdscr.addstr(logo_bottom + 6, 4, prompt)
+        paper_nums_raw = stdscr.getstr(logo_bottom + 6, 4 + len(prompt)).decode().replace(" ", "")
         stdscr.attroff(curses.color_pair(5))
         curses.noecho()
         break
 
-    paper_numbers = paper_nums_raw.split(",") if paper_nums_raw else None
+    paper_numbers = [p.strip() for p in paper_nums_raw.split(",") if p.strip()] or None
 
-    level = LEVELS[level_key]
-    subject_name, subject_code = SUBJECTS[subject_key]
+    level_ui, level_slug = LEVELS[level_key]
+    subject_name, subject_code, subject_slug = SUBJECTS[subject_key]
     paper_type = PAPER_TYPES[paper_key]
 
     session_codes = [SESSIONS[k][1] for k in session_keys]
-    year_codes = [y[-2:] for y in years]
+    session_slugs = [SESSIONS[k][2] for k in session_keys]
+    year_codes = [y.strip()[-2:] for y in years if y.strip()]
 
     out_dir = os.path.join(
         os.path.expanduser("~"),
@@ -379,8 +396,8 @@ def tui(stdscr):
         center_text(stdscr, "Summary", logo_bottom, color=1, bold=True)
         height, width = stdscr.getmaxyx()
         summary_lines = [
-            f"Level: {level}",
-            f"Subject: {subject_name}",
+            f"Level: {level_ui.upper()}",
+            f"Subject: {subject_name.title()}",
             f"Paper Type: {paper_type}",
             f"Sessions: {', '.join(session_codes)}",
             f"Years: {', '.join(year_codes)}",
@@ -398,25 +415,69 @@ def tui(stdscr):
         break
 
     # Progress bar function
-    def show_progress_bar(stdscr, total, current, y, width=50):
+    def show_progress_bar(stdscr, total, current, y, width=40):
         percent = int((current / total) * 100) if total else 0
         filled = int(width * current // total) if total else 0
         bar = "[" + "#" * filled + "-" * (width - filled) + "]"
         stdscr.addstr(y, 4, f"{bar} {percent}% ({current}/{total})")
-        stdscr.refresh()
+
+    def draw_log_panel(stdscr, start_y):
+        height, width = stdscr.getmaxyx()
+        log_dir = os.path.expanduser("~/pastpaper_logs")
+        log_path = os.path.join(log_dir, "download_status.log")
+        
+        panel_y = start_y + 2
+        if panel_y >= height - 2:
+            return
+
+        stdscr.attron(curses.color_pair(4) | curses.A_BOLD)
+        stdscr.addstr(panel_y, 4, "--- BACKGROUND TASK MONITOR ---")
+        stdscr.attroff(curses.color_pair(4) | curses.A_BOLD)
+
+        if not os.path.exists(log_path):
+            stdscr.addstr(panel_y + 1, 6, "No activity yet...")
+            return
+
+        try:
+            with open(log_path, "r") as f:
+                lines = f.readlines()
+                # Show last 5-8 lines depending on space
+                max_lines = min(height - panel_y - 4, 8)
+                display_lines = lines[-max_lines:] if lines else []
+                for i, line in enumerate(display_lines):
+                    # Truncate if too long
+                    msg = line.strip()
+                    if len(msg) > width - 10:
+                        msg = msg[:width-13] + "..."
+                    stdscr.addstr(panel_y + 1 + i, 6, msg)
+        except Exception:
+            stdscr.addstr(panel_y + 1, 6, "Error reading logs")
 
     # Build download tasks
     from pastpaper.scraper import build_download_tasks, download_with_retry
 
     tasks = build_download_tasks(
         subject_code=subject_code,
-        level=level,
-        paper_type=paper_type,
-        sessions=session_codes,
+        subject_slug=subject_slug,
+        level_slug=level_slug,
+        selected_type=paper_type,
+        session_codes=session_codes,
+        session_slugs=session_slugs,
         years=year_codes,
         paper_numbers=paper_numbers,
         out_dir=out_dir,
     )
+
+    if not tasks:
+        stdscr.clear()
+        stdscr.border()
+        logo_bottom = draw_logo_centered(stdscr)
+        center_text(stdscr, "No matching papers found!", logo_bottom, color=2, bold=True)
+        center_text(stdscr, "Check your year/session/paper selection.", logo_bottom + 2)
+        center_text(stdscr, "Press any key to exit.", logo_bottom + 4, color=3)
+        stdscr.getch()
+        curses.endwin()
+        return
 
     # Download loop with progress bar
     while True:
@@ -429,22 +490,44 @@ def tui(stdscr):
         y_bar = logo_bottom + 2
         y_status = logo_bottom + 4
         for i, (url, out_path) in enumerate(tasks, 1):
+            stdscr.clear()
+            stdscr.border()
+            logo_bottom = draw_logo_centered(stdscr)
+            center_text(stdscr, "Downloading...", logo_bottom, color=1, bold=True)
+            
+            y_bar = logo_bottom + 2
+            y_status = logo_bottom + 4
+            
             show_progress_bar(stdscr, total, i, y_bar)
-            line = f"Downloading {os.path.basename(out_path)}..."
+            
+            # Check if file already exists
+            if os.path.exists(out_path):
+                from pastpaper.scraper import log_download_status
+                log_download_status(subject_slug, url, out_path, "SKIPPED")
+                line = f"Skipping (exists): {os.path.basename(out_path)}"
+            else:
+                line = f"Processing {i}/{total}: {os.path.basename(out_path)}"
+                
             height, width = stdscr.getmaxyx()
-            if len(line) > width - 6:
-                line = line[: max(0, width - 9)] + "..."
-            stdscr.addstr(y_status + i, 4, line)
+            if len(line) > width - 10:
+                line = line[: width - 13] + "..."
+            stdscr.addstr(y_status, 4, line)
             stdscr.refresh()
-            success = download_with_retry(url, out_path)
-            status = "✔" if success else "✗"
-            line = f"{status} {os.path.basename(out_path)}"
-            if len(line) > width - 6:
-                line = line[: max(0, width - 9)] + "..."
-            stdscr.addstr(y_status + i, 4, line)
+            
+            if not os.path.exists(out_path):
+                success = download_with_retry(url, out_path)
+            
+            # After each task, we refresh the view to show the log entry from scraper
+            draw_log_panel(stdscr, y_status + 2)
             stdscr.refresh()
-            time.sleep(0.1)
-        show_progress_bar(stdscr, total, total, y_bar)
+            time.sleep(0.05)
+            
+        stdscr.clear()
+        stdscr.border()
+        logo_bottom = draw_logo_centered(stdscr)
+        center_text(stdscr, "Download Complete!", logo_bottom, color=3, bold=True)
+        show_progress_bar(stdscr, total, total, logo_bottom + 2)
+        draw_log_panel(stdscr, logo_bottom + 4)
         center_text(
             stdscr,
             "Download complete! Press any key to exit.",
