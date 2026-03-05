@@ -7,7 +7,8 @@ A terminal-based CLI tool to download CIE AS & A Level past papers from **pastpa
 - Interactive terminal interface with intuitive navigation
 - Download by subject, paper type, session, and year
 - Progress tracking during downloads
-- Organized file structure for downloaded papers
+- Organized file structure and smart session filtering (e.g., hiding March for CS)
+- **NEW: Auto-open folder** - Automatically opens the download directory in Finder when complete (**macOS Only**)
 - Support for multiple paper numbers and years
 
 ## Requirements

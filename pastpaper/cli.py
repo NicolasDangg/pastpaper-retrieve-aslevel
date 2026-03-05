@@ -415,6 +415,17 @@ def tui(stdscr):
         break
 
     # Progress bar function
+    def open_folder(path):
+        """Automatically open the folder at the given path (macOS only)."""
+        import platform
+        import subprocess
+        import os
+        if platform.system() == "Darwin" and os.path.exists(path):
+            try:
+                subprocess.run(["open", path], check=True)
+            except Exception:
+                pass
+
     def show_progress_bar(stdscr, total, current, y, width=40):
         percent = int((current / total) * 100) if total else 0
         filled = int(width * current // total) if total else 0
@@ -531,9 +542,13 @@ def tui(stdscr):
         center_text(
             stdscr,
             "Download complete! Press any key to exit.",
-            y_status + total + 2,
+            logo_bottom + 11,
             color=3,
         )
+        
+        # Automatically open the folder where papers were downloaded (macOS only)
+        open_folder(out_dir)
+        
         stdscr.getch()
         break
     curses.endwin()
