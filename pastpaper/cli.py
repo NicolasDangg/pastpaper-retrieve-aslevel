@@ -16,8 +16,8 @@ LOGO = [
 ]
 
 
-MIN_WIDTH = 80
-MIN_HEIGHT = 24
+MIN_WIDTH = 70
+MIN_HEIGHT = 19
 
 
 def check_terminal_size(stdscr):
