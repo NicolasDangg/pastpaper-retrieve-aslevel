@@ -10,6 +10,7 @@ A terminal-based CLI tool to download CIE AS & A Level past papers from **pastpa
 - Organized file structure and smart session filtering (e.g., hiding March for CS)
 - **NEW: Auto-open folder** - Automatically opens the download directory in Finder when complete (**macOS Only**)
 - Support for multiple paper numbers and years
+- Launcher dependency sync support (hash-based `requirements.txt` check) to avoid reinstalling on every run
 
 ## Requirements
 
@@ -81,9 +82,11 @@ pastpaper
 source venv/bin/activate
 python3 -m pastpaper.cli
 
-# If installed system-wide
+# If installed via launcher script
 pastpaper
 ```
+
+If your `pastpaper` command points to `/usr/local/bin/pastpaper`, the launcher should only run pip when `requirements.txt` changes or dependencies are missing.
 
 ### Navigation
 
@@ -171,6 +174,26 @@ python3 -m venv --clear venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+### Stuck at "checking dependencies..."
+If startup appears stuck at this line, your launcher is likely running `pip install -r requirements.txt` on every run.
+
+Check launcher contents:
+```bash
+cat /usr/local/bin/pastpaper
+```
+
+Expected behavior for a healthy launcher:
+- It uses a requirements hash stamp (for example: `venv/.requirements.sha256`)
+- It skips pip when dependencies are already satisfied
+- It does not use `pip install --quiet` for first-time syncs (so progress is visible)
+
+Quick manual test:
+```bash
+/Users/nicolasdangg/Documents/GitHub/pastpaper-retrieve-aslevel/venv/bin/python -m pip install -r /Users/nicolasdangg/Documents/GitHub/pastpaper-retrieve-aslevel/requirements.txt -v
+```
+
+If this command hangs, the issue is pip/environment/network related rather than the CLI UI.
 
 ## Credits
 
