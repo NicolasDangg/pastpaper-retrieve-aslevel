@@ -5,6 +5,7 @@ SUBJECTS = {
     "3": ("mathematics", "9709", "Mathematics-9709"),
     "4": ("computer science", "9618", "Computer Science (for first examination in 2021) (9618)"),
     "5": ("all", "all", "all"),
+    "6": ("psychology", "9990", "Psychology-9990"),
 }
 
 LEVELS = {
