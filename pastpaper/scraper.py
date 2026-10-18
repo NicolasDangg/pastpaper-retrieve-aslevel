@@ -138,8 +138,18 @@ def discover_files(
 
     # URL‑encode the subject slug to handle spaces but keep parentheses literal as per website spec
     encoded_subject_slug = urllib.parse.quote(subject_slug, safe='()')
+    subject_code, session = prefix.split('_', 1)
+    descriptive_name = {
+        '9231': 'mathematics---further',
+        '9700': 'biology',
+    }.get(subject_code)
+    type_name = {
+        'qp': 'question-paper', 'ms': 'mark-scheme', 'in': 'insert',
+        'er': 'examiner-report', 'gt': 'grade-thresholds',
+        'ci': 'confidential-instructions',
+    }
 
-    for paper in paper_numbers or [
+    papers = paper_numbers or [
         "11",
         "12",
         "13",
@@ -149,8 +159,12 @@ def discover_files(
         "31",
         "32",
         "33",
-    ]:
-        filename = f"{prefix}_{kind}_{paper}.pdf"
+    ]
+    if descriptive_name and kind in ('er', 'gt'):
+        papers = ['']
+
+    for paper in papers:
+        filename = f"{prefix}_{kind}{'_' + paper if paper else ''}.pdf"
 
         url = (
             f"{BASE_API}/"
@@ -161,6 +175,18 @@ def discover_files(
             f"{filename}"
             "?download=true"
         )
+        if descriptive_name:
+            month = {'m': 'march', 's': 'june', 'w': 'november'}[session[0]]
+            paper_suffix = f'-{paper}' if paper else ''
+            remote_filename = (
+                f'{subject_code}-{descriptive_name}-{month}-20{session[1:]}-'
+                f'{type_name[kind]}{paper_suffix}.pdf'
+            )
+            url = (
+                f'{BASE_API}/{BOARD}/{level_name.lower()}/'
+                f'{encoded_subject_slug.lower()}/{session_folder.lower()}/'
+                f'{remote_filename}?download=1'
+            )
 
         out_path = os.path.join(
             out_dir,
